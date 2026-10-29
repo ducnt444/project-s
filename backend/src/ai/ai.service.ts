@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { z } from 'zod';
+import { demoExtractedTrades, demoScreenerFilter } from './demo-ai.js';
 
 const extractedTradesSchema = z.object({
   trades: z.array(
@@ -65,13 +66,24 @@ export class AiService {
   private readonly logger = new Logger(AiService.name);
   private client?: Anthropic;
 
-  constructor(private readonly config: ConfigService) {}
+  /** Without an API key the AI features fall back to labelled demo results. */
+  readonly demoMode: boolean;
+
+  constructor(private readonly config: ConfigService) {
+    this.demoMode = !config.get<string>('ANTHROPIC_API_KEY');
+    if (this.demoMode) {
+      this.logger.warn(
+        'ANTHROPIC_API_KEY not set; AI features return demo data',
+      );
+    }
+  }
 
   /** Reads a brokerage screenshot and returns the trade rows it shows. */
   async extractTradesFromImage(
     image: Buffer,
     mediaType: ImageMediaType,
   ): Promise<ExtractedTrades> {
+    if (this.demoMode) return demoExtractedTrades();
     const response = await this.call(() =>
       this.anthropic().beta.messages.parse({
         model: MODEL,
@@ -115,6 +127,7 @@ export class AiService {
 
   /** Turns a natural-language screening question into structured filter criteria. */
   async parseScreenerQuery(prompt: string): Promise<ScreenerFilter> {
+    if (this.demoMode) return demoScreenerFilter(prompt);
     const response = await this.call(() =>
       this.anthropic().beta.messages.parse({
         model: MODEL,

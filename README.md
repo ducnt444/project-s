@@ -42,7 +42,12 @@ npm start
 
 Alert emails go to Mailpit's inbox at http://localhost:8025.
 
-Without `ANTHROPIC_API_KEY`, screenshot import and the screener return `503 AI features are not configured`; everything else works. Without `FMP_API_KEY`, the screener and alerts use a small mock universe whose prices follow a random walk, so you can try alerts offline.
+### Running without API keys (demo mode)
+
+You can run the whole app with no API keys, for example to review the UI:
+
+- **No `ANTHROPIC_API_KEY`**: screenshot import returns a few sample rows, and the screener uses simple keyword matching instead of AI. Both are labelled "Demo mode" in the UI.
+- **No `FMP_API_KEY`**: the screener and alerts use a small built-in set of stocks whose prices drift randomly, so alerts still fire.
 
 ## Project layout
 
@@ -51,7 +56,8 @@ backend/src
   auth/        register, login, JWT strategy and guard
   users/       User entity
   trades/      Trade entity, JSON import, screenshot import (preview only)
-  ai/          Claude calls: screenshot to trades, question to screener filter
+  ai/          Claude calls: screenshot to trades, question to screener filter;
+               demo-ai.ts stands in when no API key is set
   analytics/   FIFO realized P/L (pnl.ts, unit tested), summary endpoint
   market/      MarketDataProvider interface, FMP and mock implementations
   screener/    POST /screener/query
