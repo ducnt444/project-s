@@ -3,7 +3,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../core/api.service';
 import { errorMessage } from '../core/auth.interceptor';
-import { Trade, TradeInput } from '../core/models';
+import { ExtractedTrades, Trade, TradeInput } from '../core/models';
 
 @Component({
   selector: 'app-trades',
@@ -20,6 +20,14 @@ import { Trade, TradeInput } from '../core/models';
           <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" (change)="onImage($event)" [disabled]="busy()" />
         </label>
         <label class="file-drop">
+          <strong>Excel or CSV</strong>
+          <span class="muted">
+            An .xlsx or .csv file with columns for symbol, side, quantity, price and date.
+            <a href="trades-template.csv" download (click)="$event.stopPropagation()">Download a template</a>
+          </span>
+          <input type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" (change)="onSpreadsheet($event)" [disabled]="busy()" />
+        </label>
+        <label class="file-drop">
           <strong>JSON file</strong>
           <span class="muted">An array of trades, or <code>{{ '{' }} "trades": [...] {{ '}' }}</code>.</span>
           <input type="file" accept="application/json,.json" (change)="onJson($event)" [disabled]="busy()" />
@@ -32,10 +40,10 @@ import { Trade, TradeInput } from '../core/models';
 
     @if (review(); as rows) {
       <section class="card">
-        <h2>Review extracted trades</h2>
+        <h2>Review imported trades</h2>
         @for (w of warnings(); track $index) { <p class="warning">⚠ {{ w }}</p> }
         @if (rows.length === 0) {
-          <p class="muted">No trades found in the screenshot.</p>
+          <p class="muted">No trades found in the {{ reviewSource() === 'image' ? 'screenshot' : 'file' }}.</p>
         } @else {
           <div class="table-scroll">
             <table class="edit-table">
@@ -98,6 +106,7 @@ export class TradesPage implements OnInit {
 
   protected readonly trades = signal<Trade[]>([]);
   protected readonly review = signal<TradeInput[] | null>(null);
+  protected readonly reviewSource = signal<'image' | 'excel'>('image');
   protected readonly warnings = signal<string[]>([]);
   protected readonly busy = signal(false);
   protected readonly message = signal<string | null>(null);
@@ -112,11 +121,17 @@ export class TradesPage implements OnInit {
     if (!file) return;
     this.start();
     this.api.extractFromImage(file).subscribe({
-      next: (res) => {
-        this.review.set(res.trades.map((t) => ({ ...t, fee: t.fee ?? 0 })));
-        this.warnings.set(res.warnings);
-        this.busy.set(false);
-      },
+      next: (res) => this.showReview(res, 'image'),
+      error: (err) => this.fail(err),
+    });
+  }
+
+  protected onSpreadsheet(event: Event): void {
+    const file = this.takeFile(event);
+    if (!file) return;
+    this.start();
+    this.api.extractFromSpreadsheet(file).subscribe({
+      next: (res) => this.showReview(res, 'excel'),
       error: (err) => this.fail(err),
     });
   }
@@ -146,7 +161,7 @@ export class TradesPage implements OnInit {
     const rows = this.review();
     if (!rows) return;
     this.start();
-    this.api.saveTrades(rows, 'image').subscribe({
+    this.api.saveTrades(rows, this.reviewSource()).subscribe({
       next: (res) => {
         this.review.set(null);
         this.warnings.set([]);
@@ -162,6 +177,13 @@ export class TradesPage implements OnInit {
       next: () => this.trades.update((list) => list.filter((t) => t.id !== trade.id)),
       error: (err) => this.fail(err),
     });
+  }
+
+  private showReview(res: ExtractedTrades, source: 'image' | 'excel'): void {
+    this.review.set(res.trades.map((t) => ({ ...t, fee: t.fee ?? 0 })));
+    this.warnings.set(res.warnings);
+    this.reviewSource.set(source);
+    this.busy.set(false);
   }
 
   private load(): void {

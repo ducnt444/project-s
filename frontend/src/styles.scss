@@ -72,6 +72,7 @@ code { font-size: 0.9em; }
 
 .container { max-width: 1120px; margin: 0 auto; padding: 1.5rem 16px 3rem; }
 .muted { color: var(--text-muted); }
+a { color: var(--accent); }
 .error { color: var(--critical); }
 .success { color: var(--good); }
 .warning { background: var(--warning-bg); padding: 0.5rem 0.75rem; border-radius: 6px; }

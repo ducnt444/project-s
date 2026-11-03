@@ -18,7 +18,7 @@ export class ApiService {
     return this.http.get<Trade[]>('/api/trades');
   }
 
-  saveTrades(trades: TradeInput[], source: 'manual' | 'image') {
+  saveTrades(trades: TradeInput[], source: 'manual' | 'image' | 'excel') {
     return this.http.post<{ imported: number }>('/api/trades', { trades, source });
   }
 
@@ -30,6 +30,12 @@ export class ApiService {
     const form = new FormData();
     form.append('file', file);
     return this.http.post<ExtractedTrades>('/api/trades/import/image', form);
+  }
+
+  extractFromSpreadsheet(file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<ExtractedTrades>('/api/trades/import/spreadsheet', form);
   }
 
   deleteTrade(id: string) {

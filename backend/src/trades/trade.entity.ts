@@ -16,7 +16,7 @@ export const numericTransformer = {
 };
 
 export type TradeSide = 'BUY' | 'SELL';
-export type TradeSource = 'manual' | 'json' | 'image';
+export type TradeSource = 'manual' | 'json' | 'image' | 'excel';
 
 @Entity('trades')
 @Index(['userId', 'executedAt'])

@@ -15,11 +15,12 @@ export const tradeInputSchema = z.object({
   quantity: z.coerce.number().positive(),
   price: z.coerce.number().nonnegative(),
   fee: z.coerce.number().nonnegative().default(0),
+  // Imports may leave currency empty (null); store those as USD.
   currency: z
     .string()
     .length(3)
-    .transform((s) => s.toUpperCase())
-    .default('USD'),
+    .nullish()
+    .transform((s) => (s ?? 'USD').toUpperCase()),
   executedAt: z.coerce.date(),
   note: z.string().max(500).nullish(),
 });

@@ -14,6 +14,7 @@ A personal stocks web app: import your trade history, ask for stocks in plain En
 
 1. **Import trade history**
    - **Screenshots**: upload an image from your brokerage app. Claude extracts the trades, and you review or edit the rows before they are saved.
+   - **Excel or CSV**: upload an `.xlsx` or `.csv` file (first sheet), then review the rows before saving. Columns are matched by header name, so exports from most brokers work as-is: e.g. `Symbol`/`Ticker`/`Mã CK`, `Side`/`Action`/`Mua/Bán`, `Quantity`/`Qty`/`Khối lượng`, `Price`/`Giá`, `Date`/`Trade date`/`Ngày giao dịch`, plus optional `Fee`, `Currency` and `Note`. Title rows above the header are skipped. Rows that can't be read are listed as warnings, and dates like `03/04/2026` are read as day/month/year. Old `.xls` files must be re-saved as `.xlsx`. Try [`samples/trades.xlsx`](samples/trades.xlsx), or download the template from the import page.
    - **JSON**: upload an array of trades or `{ "trades": [...] }`. See [`samples/trades.json`](samples/trades.json).
 2. **Natural-language screener**: e.g. *"large-cap healthcare stocks yielding over 3% with beta under 1"*. Claude turns the question into structured filters (shown in the UI), and the market data provider runs them.
 3. **Charts**: realized P/L by month and by symbol (FIFO lot matching, fees included), plus win rate and open positions.
@@ -55,7 +56,7 @@ You can run the whole app with no API keys, for example to review the UI:
 backend/src
   auth/        register, login, JWT strategy and guard
   users/       User entity
-  trades/      Trade entity, JSON import, screenshot import (preview only)
+  trades/      Trade entity, JSON import, screenshot and Excel/CSV import (preview only)
   ai/          Claude calls: screenshot to trades, question to screener filter;
                demo-ai.ts stands in when no API key is set
   analytics/   FIFO realized P/L (pnl.ts, unit tested), summary endpoint
@@ -78,9 +79,10 @@ All routes are under `/api` and need `Authorization: Bearer <token>`, except `au
 | POST | `/auth/register`, `/auth/login` | Returns `{ accessToken, user }` |
 | GET | `/auth/me` | Current user |
 | GET | `/trades?symbol=` | List trades |
-| POST | `/trades` | Save reviewed rows: `{ trades, source: "manual" \| "image" }` |
+| POST | `/trades` | Save reviewed rows: `{ trades, source: "manual" \| "image" \| "excel" }` |
 | POST | `/trades/import/json` | Import a JSON export |
 | POST | `/trades/import/image` | Multipart `file`; returns extracted rows without saving them |
+| POST | `/trades/import/spreadsheet` | Multipart `file` (`.xlsx` or `.csv`); returns parsed rows and warnings without saving them |
 | DELETE | `/trades/:id` | Delete a trade |
 | GET | `/analytics/summary` | Totals, P/L by symbol and month, open positions |
 | POST | `/screener/query` | `{ prompt }` returns `{ filter, results }` |
@@ -91,7 +93,7 @@ All routes are under `/api` and need `Authorization: Bearer <token>`, except `au
 
 - `DB_SYNCHRONIZE=true` lets TypeORM create tables from the entities. Turn it off and add migrations before deploying anywhere real.
 - Both packages include `.npmrc` with `legacy-peer-deps=true`. This works around an npm 10 peer-resolution crash with the current Angular and Nest releases.
-- Tests: `cd backend && npm test` (P/L and alert logic). CI runs lint, tests and builds for both apps on every push and pull request.
+- Tests: `cd backend && npm test` (P/L, alert logic, spreadsheet parsing, demo mode). CI runs lint, tests and builds for both apps on every push and pull request.
 
 ## Roadmap ideas
 

@@ -18,6 +18,11 @@ import { AiService, ImageMediaType } from '../ai/ai.service.js';
 import { CurrentUser, JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { User } from '../users/user.entity.js';
 import type { TradeSource } from './trade.entity.js';
+import {
+  readSpreadsheet,
+  rowsToTrades,
+  SpreadsheetError,
+} from './spreadsheet-import.js';
 import { TradesService } from './trades.service.js';
 
 const IMAGE_TYPES: ImageMediaType[] = [
@@ -26,7 +31,7 @@ const IMAGE_TYPES: ImageMediaType[] = [
   'image/webp',
   'image/gif',
 ];
-const SOURCES: TradeSource[] = ['manual', 'json', 'image'];
+const SOURCES: TradeSource[] = ['manual', 'json', 'image', 'excel'];
 
 @Controller('trades')
 @UseGuards(JwtAuthGuard)
@@ -75,6 +80,30 @@ export class TradesController {
       file.buffer,
       file.mimetype as ImageMediaType,
     );
+  }
+
+  /** Reads trades from an .xlsx or .csv file. Nothing is saved; the client reviews and POSTs /trades. */
+  @Post('import/spreadsheet')
+  @HttpCode(200)
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
+  async importSpreadsheet(@UploadedFile() file?: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException(
+        'Upload an .xlsx or .csv file in the "file" field',
+      );
+    }
+    try {
+      return rowsToTrades(
+        await readSpreadsheet(file.buffer, file.originalname),
+      );
+    } catch (err) {
+      if (err instanceof SpreadsheetError) {
+        throw new BadRequestException(err.message);
+      }
+      throw err;
+    }
   }
 
   @Delete(':id')

@@ -26,7 +26,7 @@ export interface Trade extends Omit<TradeInput, 'fee' | 'currency'> {
   id: string;
   fee: number;
   currency: string;
-  source: 'manual' | 'json' | 'image';
+  source: 'manual' | 'json' | 'image' | 'excel';
   createdAt: string;
 }
 
