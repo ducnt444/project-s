@@ -3,7 +3,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../core/api.service';
 import { errorMessage } from '../core/auth.interceptor';
-import { ExtractedTrades, Trade, TradeInput } from '../core/models';
+import { ExtractedTrades, ImportResult, Trade, TradeInput } from '../core/models';
 
 @Component({
   selector: 'app-trades',
@@ -41,6 +41,9 @@ import { ExtractedTrades, Trade, TradeInput } from '../core/models';
     @if (review(); as rows) {
       <section class="card">
         <h2>Review imported trades</h2>
+        @if (format(); as f) {
+          <p class="muted">Recognised <strong>{{ f.name }}</strong>. {{ f.details }}</p>
+        }
         @for (w of warnings(); track $index) { <p class="warning">⚠ {{ w }}</p> }
         @if (rows.length === 0) {
           <p class="muted">No trades found in the {{ reviewSource() === 'image' ? 'screenshot' : 'file' }}.</p>
@@ -58,7 +61,10 @@ import { ExtractedTrades, Trade, TradeInput } from '../core/models';
                     <td><input type="number" [(ngModel)]="r.quantity" [name]="'qty' + $index" /></td>
                     <td><input type="number" [(ngModel)]="r.price" [name]="'px' + $index" /></td>
                     <td><input type="number" [(ngModel)]="r.fee" [name]="'fee' + $index" /></td>
-                    <td><input [(ngModel)]="r.executedAt" [name]="'at' + $index" /></td>
+                    <td>
+                      <input type="datetime-local" step="1" [name]="'at' + $index"
+                             [ngModel]="toLocalInput(r.executedAt)" (ngModelChange)="r.executedAt = fromLocalInput($event, r.executedAt)" />
+                    </td>
                     <td><button type="button" class="link" (click)="removeRow($index)" aria-label="Remove row">✕</button></td>
                   </tr>
                 }
@@ -107,6 +113,7 @@ export class TradesPage implements OnInit {
   protected readonly trades = signal<Trade[]>([]);
   protected readonly review = signal<TradeInput[] | null>(null);
   protected readonly reviewSource = signal<'image' | 'excel'>('image');
+  protected readonly format = signal<ExtractedTrades['format']>(null);
   protected readonly warnings = signal<string[]>([]);
   protected readonly busy = signal(false);
   protected readonly message = signal<string | null>(null);
@@ -148,7 +155,7 @@ export class TradesPage implements OnInit {
       return;
     }
     this.api.importJson(payload).subscribe({
-      next: (res) => this.done(`Imported ${res.imported} trade(s).`),
+      next: (res) => this.done(this.summarise('Imported', res)),
       error: (err) => this.fail(err),
     });
   }
@@ -165,7 +172,7 @@ export class TradesPage implements OnInit {
       next: (res) => {
         this.review.set(null);
         this.warnings.set([]);
-        this.done(`Saved ${res.imported} trade(s).`);
+        this.done(this.summarise('Saved', res));
       },
       error: (err) => this.fail(err),
     });
@@ -183,7 +190,28 @@ export class TradesPage implements OnInit {
     this.review.set(res.trades.map((t) => ({ ...t, fee: t.fee ?? 0 })));
     this.warnings.set(res.warnings);
     this.reviewSource.set(source);
+    this.format.set(res.format ?? null);
     this.busy.set(false);
+  }
+
+  /** ISO instant -> "YYYY-MM-DDTHH:mm:ss" in the browser's time zone, for datetime-local inputs. */
+  protected toLocalInput(iso: string): string {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
+    return local.toISOString().slice(0, 19);
+  }
+
+  protected fromLocalInput(value: string, previous: string): string {
+    const d = new Date(value); // parsed as local time
+    return isNaN(d.getTime()) ? previous : d.toISOString();
+  }
+
+  private summarise(verb: string, res: ImportResult): string {
+    const skipped = res.duplicates
+      ? ` ${res.duplicates} already imported (same order ID) were skipped.`
+      : '';
+    return `${verb} ${res.imported} trade(s).${skipped}`;
   }
 
   private load(): void {

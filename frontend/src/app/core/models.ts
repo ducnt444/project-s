@@ -20,6 +20,7 @@ export interface TradeInput {
   currency?: string | null;
   executedAt: string;
   note?: string | null;
+  externalId?: string | null;
 }
 
 export interface Trade extends Omit<TradeInput, 'fee' | 'currency'> {
@@ -33,6 +34,14 @@ export interface Trade extends Omit<TradeInput, 'fee' | 'currency'> {
 export interface ExtractedTrades {
   trades: TradeInput[];
   warnings: string[];
+  /** Set when a spreadsheet matched a known broker export. */
+  format?: { name: string; details: string } | null;
+}
+
+export interface ImportResult {
+  imported: number;
+  /** Rows skipped because their broker order ID was already imported. */
+  duplicates: number;
 }
 
 export interface PnlRow {
@@ -49,6 +58,7 @@ export interface AnalyticsSummary {
   byMonth: PnlRow[];
   openPositions: { symbol: string; quantity: number; averageCost: number; costBasis: number }[];
   unmatched: { symbol: string; executedAt: string; quantity: number }[];
+  currencies: string[];
 }
 
 export interface ScreenedStock {

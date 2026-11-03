@@ -20,6 +20,11 @@ export type TradeSource = 'manual' | 'json' | 'image' | 'excel';
 
 @Entity('trades')
 @Index(['userId', 'executedAt'])
+// Re-importing an overlapping broker export must not duplicate trades.
+@Index('uq_trades_user_external_id', ['userId', 'externalId'], {
+  unique: true,
+  where: 'external_id IS NOT NULL',
+})
 export class Trade {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -73,6 +78,10 @@ export class Trade {
 
   @Column({ type: 'varchar', length: 500, nullable: true })
   note: string | null;
+
+  /** The broker's order or trade ID, when the import provides one. */
+  @Column({ name: 'external_id', type: 'varchar', length: 64, nullable: true })
+  externalId: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

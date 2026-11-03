@@ -25,6 +25,8 @@ export class AnalyticsService {
       byMonth: groupPnl(realized, (e) => monthKey(e.executedAt)),
       openPositions,
       unmatched,
+      // Amounts are not converted, so the UI needs to know what it is summing.
+      currencies: [...new Set(trades.map((t) => t.currency))].sort(),
     };
   }
 }

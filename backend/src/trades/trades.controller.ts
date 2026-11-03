@@ -88,7 +88,10 @@ export class TradesController {
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
   )
-  async importSpreadsheet(@UploadedFile() file?: Express.Multer.File) {
+  async importSpreadsheet(
+    @UploadedFile() file?: Express.Multer.File,
+    @Body('timeZone') timeZone?: string,
+  ) {
     if (!file) {
       throw new BadRequestException(
         'Upload an .xlsx or .csv file in the "file" field',
@@ -97,6 +100,7 @@ export class TradesController {
     try {
       return rowsToTrades(
         await readSpreadsheet(file.buffer, file.originalname),
+        { timeZone },
       );
     } catch (err) {
       if (err instanceof SpreadsheetError) {

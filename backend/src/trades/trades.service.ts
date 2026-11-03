@@ -34,13 +34,28 @@ export class TradesService {
     return this.createMany(userId, parsed.data, source);
   }
 
+  /** Inserts trades, skipping any whose broker ID was already imported. */
   async createMany(userId: string, rows: TradeInput[], source: TradeSource) {
-    if (rows.length === 0) return { imported: 0 };
-    const entities = rows.map((r) =>
-      this.trades.create({ ...r, note: r.note ?? null, userId, source }),
-    );
-    await this.trades.save(entities, { chunk: 500 });
-    return { imported: entities.length };
+    if (rows.length === 0) return { imported: 0, duplicates: 0 };
+    const values = rows.map((r) => ({
+      ...r,
+      note: r.note ?? null,
+      externalId: r.externalId ?? null,
+      userId,
+      source,
+    }));
+    let imported = 0;
+    for (let i = 0; i < values.length; i += 500) {
+      const result = await this.trades
+        .createQueryBuilder()
+        .insert()
+        .values(values.slice(i, i + 500))
+        .orIgnore()
+        .returning(['id'])
+        .execute();
+      imported += (result.raw as unknown[]).length;
+    }
+    return { imported, duplicates: rows.length - imported };
   }
 
   async remove(userId: string, id: string) {

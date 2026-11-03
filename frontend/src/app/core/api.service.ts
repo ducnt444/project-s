@@ -5,6 +5,7 @@ import {
   AlertCondition,
   AnalyticsSummary,
   ExtractedTrades,
+  ImportResult,
   ScreenerResponse,
   Trade,
   TradeInput,
@@ -19,11 +20,11 @@ export class ApiService {
   }
 
   saveTrades(trades: TradeInput[], source: 'manual' | 'image' | 'excel') {
-    return this.http.post<{ imported: number }>('/api/trades', { trades, source });
+    return this.http.post<ImportResult>('/api/trades', { trades, source });
   }
 
   importJson(payload: unknown) {
-    return this.http.post<{ imported: number }>('/api/trades/import/json', payload);
+    return this.http.post<ImportResult>('/api/trades/import/json', payload);
   }
 
   extractFromImage(file: File) {
@@ -35,6 +36,8 @@ export class ApiService {
   extractFromSpreadsheet(file: File) {
     const form = new FormData();
     form.append('file', file);
+    // Used for dates without a zone, unless the file's format implies one.
+    form.append('timeZone', Intl.DateTimeFormat().resolvedOptions().timeZone);
     return this.http.post<ExtractedTrades>('/api/trades/import/spreadsheet', form);
   }
 

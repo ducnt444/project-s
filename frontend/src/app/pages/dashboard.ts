@@ -1,14 +1,14 @@
-import { CurrencyPipe, DecimalPipe, PercentPipe } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { DecimalPipe, PercentPipe } from '@angular/common';
+import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { ApiService } from '../core/api.service';
-import { PnlBarChart } from '../shared/pnl-bar-chart';
+import { formatMoney, PnlBarChart } from '../shared/pnl-bar-chart';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [PnlBarChart, CurrencyPipe, DecimalPipe, PercentPipe, RouterLink],
+  imports: [PnlBarChart, DecimalPipe, PercentPipe, RouterLink],
   template: `
     <h1>Dashboard</h1>
     @if (summary(); as s) {
@@ -22,7 +22,7 @@ import { PnlBarChart } from '../shared/pnl-bar-chart';
           <div class="card tile">
             <span class="tile-label">Realized P/L</span>
             <span class="tile-value" [class.gain]="s.totals.realizedPnl >= 0" [class.loss]="s.totals.realizedPnl < 0">
-              {{ s.totals.realizedPnl >= 0 ? '▲' : '▼' }} {{ s.totals.realizedPnl | currency }}
+              {{ s.totals.realizedPnl >= 0 ? '▲' : '▼' }} {{ money(s.totals.realizedPnl) }}
             </span>
           </div>
           <div class="card tile">
@@ -39,6 +39,12 @@ import { PnlBarChart } from '../shared/pnl-bar-chart';
           </div>
         </div>
 
+        @if (s.currencies.length > 1) {
+          <p class="warning" role="note">
+            ⚠ Your trades use several currencies ({{ s.currencies.join(', ') }}). Totals add them together without conversion.
+          </p>
+        }
+
         @if (s.unmatched.length) {
           <p class="warning" role="note">
             ⚠ {{ s.unmatched.length }} sell(s) had no matching buy, so their P/L is excluded. Import older history to fix.
@@ -48,11 +54,11 @@ import { PnlBarChart } from '../shared/pnl-bar-chart';
         <div class="grid-2">
           <section class="card">
             <h2>Realized P/L by month</h2>
-            <app-pnl-bar-chart [rows]="s.byMonth" label="Realized profit and loss by month" />
+            <app-pnl-bar-chart [rows]="s.byMonth" [currency]="currency()" label="Realized profit and loss by month" />
           </section>
           <section class="card">
             <h2>Realized P/L by symbol</h2>
-            <app-pnl-bar-chart [rows]="s.bySymbol" [horizontal]="true" label="Realized profit and loss by symbol" />
+            <app-pnl-bar-chart [rows]="s.bySymbol" [currency]="currency()" [horizontal]="true" label="Realized profit and loss by symbol" />
           </section>
         </div>
 
@@ -64,8 +70,8 @@ import { PnlBarChart } from '../shared/pnl-bar-chart';
               @for (r of s.bySymbol; track r.key) {
                 <tr>
                   <td>{{ r.key }}</td><td class="num">{{ r.trades }}</td>
-                  <td class="num">{{ r.costBasis | currency }}</td><td class="num">{{ r.proceeds | currency }}</td>
-                  <td class="num">{{ r.pnl | currency }}</td>
+                  <td class="num">{{ money(r.costBasis) }}</td><td class="num">{{ money(r.proceeds) }}</td>
+                  <td class="num">{{ money(r.pnl) }}</td>
                 </tr>
               }
             </tbody>
@@ -81,7 +87,7 @@ import { PnlBarChart } from '../shared/pnl-bar-chart';
                 @for (p of s.openPositions; track p.symbol) {
                   <tr>
                     <td>{{ p.symbol }}</td><td class="num">{{ p.quantity | number: '1.0-4' }}</td>
-                    <td class="num">{{ p.averageCost | currency }}</td><td class="num">{{ p.costBasis | currency }}</td>
+                    <td class="num">{{ money(p.averageCost) }}</td><td class="num">{{ money(p.costBasis) }}</td>
                   </tr>
                 }
               </tbody>
@@ -96,4 +102,13 @@ import { PnlBarChart } from '../shared/pnl-bar-chart';
 })
 export class DashboardPage {
   protected readonly summary = toSignal(inject(ApiService).summary().pipe(catchError(() => of(undefined))));
+  /** The single currency of all trades, or null when they are mixed. */
+  protected readonly currency = computed(() => {
+    const list = this.summary()?.currencies ?? [];
+    return list.length === 1 ? list[0] : list.length === 0 ? 'USD' : null;
+  });
+
+  protected money(value: number): string {
+    return formatMoney(value, this.currency());
+  }
 }

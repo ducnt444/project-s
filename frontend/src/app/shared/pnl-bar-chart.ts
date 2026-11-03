@@ -4,7 +4,15 @@ import { PnlRow } from '../core/models';
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
 
-const money = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+/** Formats an amount in `currency`, or as a plain number when it is null (mixed currencies). */
+export function formatMoney(value: number, currency: string | null, compact = false): string {
+  // en-US to match the app's Angular pipes, so all numbers use the same separators.
+  return new Intl.NumberFormat('en-US', {
+    ...(currency ? { style: 'currency', currency } : {}),
+    notation: compact ? 'compact' : 'standard',
+    maximumFractionDigits: compact ? 1 : currency ? undefined : 2,
+  }).format(value);
+}
 
 /** Reads a CSS custom property so the chart follows the light/dark theme tokens. */
 function token(name: string): string {
@@ -23,14 +31,15 @@ export class PnlBarChart implements OnDestroy {
   readonly rows = input.required<PnlRow[]>();
   readonly label = input('Realized profit and loss');
   readonly horizontal = input(false);
+  readonly currency = input<string | null>('USD');
 
   private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   private chart?: Chart<'bar'>;
   private readonly media = matchMedia('(prefers-color-scheme: dark)');
-  private readonly rerender = () => this.render(this.rows());
+  private readonly rerender = () => this.render(this.rows(), this.currency());
 
   constructor() {
-    effect(() => this.render(this.rows()));
+    effect(() => this.render(this.rows(), this.currency()));
     this.media.addEventListener('change', this.rerender);
   }
 
@@ -39,13 +48,13 @@ export class PnlBarChart implements OnDestroy {
     this.chart?.destroy();
   }
 
-  private render(rows: PnlRow[]): void {
+  private render(rows: PnlRow[], currency: string | null): void {
     this.chart?.destroy();
     const gain = token('--gain');
     const loss = token('--loss');
     const muted = token('--text-muted');
     const grid = token('--grid');
-    const valueAxis = { grid: { color: grid }, border: { display: false }, ticks: { color: muted, callback: (v: string | number) => money.format(Number(v)) } };
+    const valueAxis = { grid: { color: grid }, border: { display: false }, ticks: { color: muted, callback: (v: string | number) => formatMoney(Number(v), currency, true) } };
     const categoryAxis = { grid: { display: false }, border: { color: grid }, ticks: { color: muted } };
 
     this.chart = new Chart(this.canvas().nativeElement, {
@@ -72,7 +81,7 @@ export class PnlBarChart implements OnDestroy {
             callbacks: {
               label: (ctx) => {
                 const row = rows[ctx.dataIndex];
-                return `${money.format(row.pnl)} · ${row.trades} closing trade${row.trades === 1 ? '' : 's'}`;
+                return `${formatMoney(row.pnl, currency)} · ${row.trades} closing trade${row.trades === 1 ? '' : 's'}`;
               },
             },
           },

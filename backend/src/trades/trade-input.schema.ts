@@ -23,6 +23,7 @@ export const tradeInputSchema = z.object({
     .transform((s) => (s ?? 'USD').toUpperCase()),
   executedAt: z.coerce.date(),
   note: z.string().max(500).nullish(),
+  externalId: z.string().trim().min(1).max(64).nullish(),
 });
 
 export const tradeImportSchema = z.union([
