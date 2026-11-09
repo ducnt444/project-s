@@ -132,6 +132,7 @@ All routes are under `/api` and need `Authorization: Bearer <token>`, except `au
 | POST | `/trades/import/image` | Multipart `file`; returns extracted rows without saving them |
 | POST | `/trades/import/spreadsheet` | Multipart `file` (`.xlsx` or `.csv`); returns parsed rows and warnings without saving them |
 | DELETE | `/trades/:id` | Delete a trade |
+| DELETE | `/trades` | Delete all of your trades (the **Delete all trades** button); alerts are kept |
 | GET | `/analytics/summary` | Totals, P/L by symbol and month, open positions |
 | POST | `/screener/query` | `{ prompt }` returns `{ filter, results }` |
 | GET/POST | `/alerts` | List or create alerts |

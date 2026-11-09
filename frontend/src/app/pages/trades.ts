@@ -80,7 +80,12 @@ import { ExtractedTrades, ImportResult, Trade, TradeInput } from '../core/models
     }
 
     <section class="card">
-      <h2>History ({{ trades().length }})</h2>
+      <div class="card-header">
+        <h2>History ({{ trades().length }})</h2>
+        @if (trades().length > 0) {
+          <button type="button" class="danger" (click)="removeAll()" [disabled]="busy()">Delete all trades</button>
+        }
+      </div>
       @if (trades().length === 0) {
         <p class="muted">No trades yet.</p>
       } @else {
@@ -182,6 +187,20 @@ export class TradesPage implements OnInit {
     if (!confirm(`Delete ${trade.side} ${trade.symbol}?`)) return;
     this.api.deleteTrade(trade.id).subscribe({
       next: () => this.trades.update((list) => list.filter((t) => t.id !== trade.id)),
+      error: (err) => this.fail(err),
+    });
+  }
+
+  protected removeAll(): void {
+    const count = this.trades().length;
+    const ok = confirm(
+      `Delete all ${count} trade(s)? Your dashboard will be empty until you import again. ` +
+        'This cannot be undone. Alerts are kept.',
+    );
+    if (!ok) return;
+    this.start();
+    this.api.deleteAllTrades().subscribe({
+      next: (res) => this.done(`Deleted ${res.deleted} trade(s).`),
       error: (err) => this.fail(err),
     });
   }

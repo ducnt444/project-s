@@ -112,6 +112,12 @@ export class TradesController {
     }
   }
 
+  /** Deletes all of the signed-in user's trades. Alerts are kept. */
+  @Delete()
+  removeAll(@CurrentUser() user: User) {
+    return this.trades.removeAll(user.id);
+  }
+
   @Delete(':id')
   @HttpCode(204)
   remove(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {

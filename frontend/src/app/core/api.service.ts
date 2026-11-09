@@ -41,6 +41,10 @@ export class ApiService {
     return this.http.post<ExtractedTrades>('/api/trades/import/spreadsheet', form);
   }
 
+  deleteAllTrades() {
+    return this.http.delete<{ deleted: number }>('/api/trades');
+  }
+
   deleteTrade(id: string) {
     return this.http.delete<void>(`/api/trades/${id}`);
   }

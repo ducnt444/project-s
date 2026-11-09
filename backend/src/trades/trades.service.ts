@@ -58,6 +58,12 @@ export class TradesService {
     return { imported, duplicates: rows.length - imported };
   }
 
+  /** Deletes every trade of the user, e.g. to start an import over. */
+  async removeAll(userId: string) {
+    const result = await this.trades.delete({ userId });
+    return { deleted: result.affected ?? 0 };
+  }
+
   async remove(userId: string, id: string) {
     const result = await this.trades.delete({ id, userId });
     if (!result.affected) throw new NotFoundException();
