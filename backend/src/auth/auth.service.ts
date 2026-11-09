@@ -1,8 +1,10 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
 import { User } from '../users/user.entity.js';
@@ -19,9 +21,13 @@ export class AuthService {
   constructor(
     private readonly users: UsersService,
     private readonly jwt: JwtService,
+    private readonly config: ConfigService,
   ) {}
 
   async register(dto: RegisterDto) {
+    if (!this.mayRegister(dto.email)) {
+      throw new ForbiddenException('Registration is closed for this email');
+    }
     if (await this.users.findByEmail(dto.email)) {
       throw new ConflictException('Email is already registered');
     }
@@ -36,6 +42,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
     return this.issueToken(user);
+  }
+
+  /** ALLOWED_EMAILS (comma-separated) limits sign-ups on a public deployment; unset allows anyone. */
+  private mayRegister(email: string): boolean {
+    const allowed = this.config
+      .get<string>('ALLOWED_EMAILS', '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    return allowed.length === 0 || allowed.includes(email.trim().toLowerCase());
   }
 
   toProfile(user: User) {

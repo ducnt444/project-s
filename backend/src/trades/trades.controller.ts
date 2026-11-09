@@ -14,6 +14,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { AiService, ImageMediaType } from '../ai/ai.service.js';
 import { CurrentUser, JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { User } from '../users/user.entity.js';
@@ -67,6 +68,7 @@ export class TradesController {
   /** Extracts trades from a screenshot. Nothing is saved; the client reviews and POSTs /trades. */
   @Post('import/image')
   @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } }) // each call is a paid AI request
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
   )

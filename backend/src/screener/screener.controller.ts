@@ -6,6 +6,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { IsString, MaxLength, MinLength } from 'class-validator';
 import { AiService } from '../ai/ai.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
@@ -32,6 +33,7 @@ export class ScreenerController {
   /** Natural-language stock screening, e.g. "large-cap tech stocks under $200 with low beta". */
   @Post('query')
   @HttpCode(200)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } }) // each call is a paid AI request
   async query(@Body() dto: ScreenerQueryDto) {
     const filter = await this.ai.parseScreenerQuery(dto.prompt);
     const results = await this.market.screen(filter);
